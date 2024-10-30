@@ -1,0 +1,443 @@
+serviceindex:
+  image:
+    repository: reportportal/service-index
+    tag: 5.12.0
+  nodeSelector:
+    env: beta
+
+serviceui:
+  image:
+    repository: reportportal/service-ui
+    tag: 5.12.0
+  nodeSelector:
+    env: beta
+
+serviceapi:
+  image:
+    repository: reportportal/service-api
+    tag: 5.12.0
+  pullPolicy: Always
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1500m
+      memory: 2560Mi
+  
+  ## Configure Audit logs to be written to the API container's directory /var/log/reportportal/audit.log
+  auditLogs:
+    ## Enable or disable the sidecar log streamer container
+    enable: false 
+    ## Set the log level for audit logs (info, debug, etc.)
+    loglevel: info
+
+    # Configure sidecar container settings for Audit logs
+    sidecar:
+      image:
+        repository: busybox
+        tag: latest
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
+        limits:
+          cpu: 100m
+          memory: 100Mi
+  
+  ## "Delete Account" button in UI
+  allowDeleteAccount: true  ## set `false` to disable feature
+  
+  ## CRON Jobs
+  cronJobs:
+    ## ISO 8601 duration format
+    interruptBrockenLaunches: PT1H
+    loadPlugins: PT30S
+  
+  ## Pattern Analysis and Immediate IA configuration
+  patternAnalysis:
+    batchSize: 100
+    ## @param patternAnalysis.prefetchCount define of the prefetch count for 'analysis.pattern.string' and 'analysis.pattern.regex' queues.
+    prefetchCount: 1
+    ## @param patternAnalysis.consumersCount define of the 'analysis.pattern.string' and 'analysis.pattern.regex' queues. Consumers count per each queue
+    consumersCount: 1
+
+  ## JAVA_OPTS
+  ## If you need to use a custom java keystore you can use it through jvmArgs (e.g. jvmArgs: -Djavax.net.ssl.trustStore=/etc/secret-volume/custom-pki.jks)
+  
+  ## @param serviceapi.amqp define the configuration for the AMQP
+  ##
+  amqp:
+    ## @param serviceapi.amqp.queues define the number for the queues
+    ##
+    queues: 10
+    ## @param serviceapi.amqp.prefetchCount define the prefetch count per consumer
+    ## 
+    prefetchCount: 10
+    ## @param serviceapi.amqp.consumersCount define time to live in parking lot queue
+    ## 
+    parkingLotTtlDays: 7
+
+  ## Extra environment variables
+  extraEnvs: []
+    # - name: RP_ENVIRONMENT_VARIABLE_INSTANCE_TYPE
+    #   value: "Dedicated"
+    # - name: RP_ENVIRONMENT_VARIABLE_GA_MEASUREMENT_ID
+    #   value: "G-Q5Q5X3LTGC"
+    # - name: RP_ENVIRONMENT_VARIABLE_USER_SUGGESTIONS
+    #   value: "true"
+      
+  nodeSelector:
+    beta: api
+
+uat:
+  image:
+    repository: reportportal/service-authorization
+    tag: 5.12.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  sessionLiveTime: 86400
+  samlSessionLiveTime: 4320
+  
+  ## RP_INITIAL_ADMIN_PASSWORD - the initial password of the superadmin user for the first launch. This value can't change the password on redeployments.
+  ## Create a K8S Secret and set the name to @param superadminInitPasswd.secretName for future redeplyments or upgrades.
+  
+  superadminInitPasswd:
+    secretName: ""
+    passwordKeyName: "superadmin-password"
+    password: "erebus"
+
+  # jvmArgs: "--add-opens=java.base/java.lang=ALL-UNNAMED"
+
+  extraEnvs: []
+  nodeSelector:
+    env: beta
+
+servicejobs:
+  image:
+    repository: reportportal/service-jobs
+    tag: 5.12.0
+  coreJobs:
+    cleanEventsRetention: 365
+    cleanEventsCron: 0 */6 * * * *
+    cleanAttachmentCron: 0 15 8 * * *
+    cleanLogCron: 0 32 21 * * *
+    cleanLaunchCron: 0 20 19 * * *
+    cleanStorageCron: 0 57 12 * * *
+    storageProjectCron: 0 2 13 * * *
+  chunksize: "3000000"
+
+  ## Double Entry purposes. The Jobs service processes logs at a rate of one log per millisecond.
+  ## Ref: https://reportportal.io/blog/double-entry-in-5.7.2
+  logProcessing:
+    maxBatchSize: 2000
+    maxBatchTimeout: 6000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 248Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  ## Extra environment variables
+  extraEnvs:
+    - name: RP_ENVIRONMENT_VARIABLE_GA_CRON
+      value: "0 */5 * * * *"
+  nodeSelector: 
+    beta: db
+   
+
+serviceanalyzer:
+  image:
+    repository: reportportal/service-auto-analyzer
+    tag: 5.12.0-r1
+  uwsgiWorkers: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 2048Mi
+  extraEnvs: []
+  nodeSelector:
+    beta: rabbitmq
+
+serviceanalyzertrain:
+  uwsgiWorkers: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  extraEnvs: []
+  nodeSelector:
+    beta: rabbitmq
+
+metricsgatherer:
+  image:
+    repository: reportportal/service-metrics-gatherer
+    tag: 5.12.0-r1
+  nodeSelector:
+    beta: rabbitmq
+
+migrations:
+  image:
+    repository: reportportal/migrations
+    tag: 5.12.1
+
+
+## @section Infrastructure configuration
+
+database:
+  secretName: &dbSecret postgresql-credentials
+  endpoint:
+  port: &dbport 5432
+  user: &dbuser postgres
+  dbName: &dbname reportportal
+  ssl: disable ## set @param database.endpoint.ssl to `require` if database connection use SSL disable
+  password: &dbpassword rppassword
+  ## Number of database connections
+  connections: &dbconnections ""
+
+msgbroker:
+  secretName: &msgbrokerSecret rabbitmq-credentials
+  ## Virtual hosts provide logical grouping and separation of resources. Ref: https://www.rabbitmq.com/vhosts.html
+  vhost: analyzer
+  analyzerExchangeName: analyzer-default
+  ssl: false    ## set to `true` if use HTTPS and AMQPS
+  endpoint:
+  port: &msgbrokerPort 5672
+  user: &msgbrokerUser rpuser
+  apiport: &msgbrokerApiPort 15672
+  apiuser: *msgbrokerUser
+  password: &msgbrokerPass rppass
+
+searchengine:
+  secretName: ""
+  ##
+  ## Double entry moves test logs from PostgreSQL to Elastic-type engines. Ref: https://reportportal.io/blog/double-entry-in-5.7.2
+  ## ElasticSearch Performance tuning
+  ## Ref: https://reportportal.io/docs/installation-steps/OptimalPerformanceHardwareSetup/#7-elasticsearch-performance-tuning
+  ##
+  doubleEntry:
+    enable: true
+  endpoint:
+  ## ref. to @param searchengine.protocol
+  ssl: false  ## set to `true` if use HTTPS
+  port: &searchenginePort 9200
+  user:
+  password:
+
+storage:
+  ## @param storage.type Possible storage types: minio, s3
+  type: minio
+  secretName: &storageSecret minio-credentials
+  ## @param storage.accesskeyName and @param storage.secretkeyName pass to the env[].valueFrom.secretKeyRef.key
+  accesskeyName: "access-key"
+  secretkeyName: "secret-key"
+  accesskey: &storageAccessKey rpuser
+  secretkey: &storageSecretKey rppass
+  ## @param storage.endpoint URL without protocol and port
+  endpoint:
+  ssl: false  ## set to `true` if use HTTPS
+  port: 9000
+  region: ""
+  bucket:
+    ## @param storage.bucket.type switches between multi and single buckets. 
+    ## If you are upgrading an already installed Report Portal, a migration is required. 
+    ## Ref: https://github.com/reportportal/migrations-complex/tree/master/charts
+    ##
+    type: multi
+    ## type: multi / single
+    ##
+    ## When @param storage.bucket.type=multi @param storage.bucket.bucketDefaultName defines plugins bucket
+    ## When @param storage.bucket.type=single @param storage.bucket.bucketDefaultName' defines default single bucket name
+    ##
+    bucketDefaultName: "rp-bucket"
+    ## Multi-bucket values
+    bucketMultiPrefix: "prj-"
+    bucketMultiPostfix: ""
+    ## @param storage.bucket.bucketMultiSaltName storing auth keystor
+    bucketMultiSaltName: "keystore"
+
+
+ingress:
+  enable: true
+  hosts:
+    - beta.epmrpp.reportportal.io
+  path: null
+  class: nginx
+  annotations:
+    nginx:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/proxy-body-size: 128m
+      nginx.ingress.kubernetes.io/proxy-buffer-size: 512k
+      nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+      nginx.ingress.kubernetes.io/proxy-busy-buffers-size: 512k
+      nginx.ingress.kubernetes.io/proxy-connect-timeout: "8000"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "4000"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "4000"
+    gce: {}
+    custom: {}
+  tls:
+    certificates: null
+    certificate:
+      gcpManaged: false
+      privateKey: null
+      certificate: null
+
+## @section External dependencies installation configuration
+
+## @param postgresql External PostgreSQL Helm Chart as dependency
+postgresql: 
+  install: true   ## set to `false` if using a Cloud/On-Premise managed database.
+  auth:
+    # postgresPassword: *dbpassword
+    username: *dbuser
+    # password: *dbpassword
+    database: *dbname
+    existingSecret: *dbSecret
+    secretKeys:
+        adminPasswordKey: "postgresql-password"
+        userPasswordKey: "postgresql-password"
+        # replicationPasswordKey: ""
+  primary:
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2048Mi
+      limits:
+        cpu: 1800m
+        memory: 3072Mi
+    service:
+      ports:
+        postgresql: *dbport
+      type: NodePort
+      nodePorts: 
+        postgresql: "32345"
+    persistence:
+      size: 30Gi
+    tolerations:
+    - key: "rp"
+      operator: "Equal"
+      value: "beta"
+      effect: "NoSchedule"
+    nodeSelector:
+      beta: db
+
+## @param rabbitmq External RabbitMQ Helm Chart as dependency
+rabbitmq:
+  install: true   ## set to `false` if using a Cloud/On-Premise managed RabbitMQ.
+  auth:
+    username: *msgbrokerUser
+    # password: *msgbrokerPass
+    existingPasswordSecret: *msgbrokerSecret # key: rabbitmq-password
+  containerPorts:
+    amqp: *msgbrokerPort
+    manager: *msgbrokerApiPort
+  persistence:
+    size: 20Gi
+  tolerations:
+    - key: "rp"
+      operator: "Equal"
+      value: "beta"
+      effect: "NoSchedule"
+  ingress:
+    enabled: true
+    hostname: beta-msgbroker.epmrpp.reportportal.io
+    annotations:
+      kubernetes.io/ingress.class: nginx
+  nodeSelector:
+    beta: rabbitmq
+
+## @param opensearch External OpenSearch Helm Chart as dependency
+opensearch:
+  install: true   ## set to `false` if using a Cloud/On-Premise managed OpenSearch.
+  image:
+    repository: opensearchproject/opensearch
+    tag: 2.11.1
+  ## @param opensearch.singleNode If "true", replicas will be forced from 3 to 1
+  singleNode: true
+  ## @param opensearch.httpPort Port for OpenSearch endpoint
+  httpPort: *searchenginePort
+  startupProbe:
+    initialDelaySeconds: 30
+  extraEnvs:
+    - name: DISABLE_INSTALL_DEMO_CONFIG
+      value: "true"
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "true"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1536Mi"
+  # opensearchJavaOpts: "-Xmx1024M -Xms1024M"
+  service:
+    type: NodePort
+    nodePort: "30200"
+  persistence:
+    size: 20Gi
+  tolerations:
+    - key: "rp"
+      operator: "Equal"
+      value: "beta"
+      effect: "NoSchedule"
+  nodeSelector:
+    env: beta
+  
+
+## Apache 2.0 license version
+## @param minio External MinIO Helm Chart as dependency 6.7.7
+minio:
+  install: true   ## set to `true` if using a Cloud/On-Premise managed storage.
+  image:
+    registry: docker.io
+    repository: bitnami/minio
+    tag: 2024.6.26-debian-12-r0
+  auth:
+    existingSecret: *storageSecret
+    rootUserSecretKey: access-key
+    rootPasswordSecretKey: secret-key
+  service:
+    type: NodePort
+    nodePorts:
+      api: "32554"
+      console: "32555"
+  ingress:
+    enabled: true
+    hostname: beta-storage.epmrpp.reportportal.io
+    annotations:
+      kubernetes.io/ingress.class: nginx
+  persistence:
+    size: 20Gi
+    annotations:
+      "helm.sh/resource-policy": "keep"
+  # volumePermissions:
+  #   enabled: true
+  tolerations:
+    - key: "rp"
+      operator: "Equal"
+      value: "beta"
+      effect: "NoSchedule"
+  nodeSelector:
+    beta: api
+
+
+tolerations:
+  - key: "rp"
+    operator: "Equal"
+    value: "beta"
+    effect: "NoSchedule"
