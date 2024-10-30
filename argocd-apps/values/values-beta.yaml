@@ -325,6 +325,8 @@ postgresql:
       type: NodePort
       nodePorts: 
         postgresql: "32345"
+    extendedConfiguration: |
+      max_connections = 200
     persistence:
       size: 30Gi
     tolerations:
