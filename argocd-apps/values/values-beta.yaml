@@ -14,8 +14,8 @@ serviceui:
 
 serviceapi:
   image:
-    repository: reportportal/service-api
-    tag: 5.12.0
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-api
+    tag: rc-5.12.1-47
   pullPolicy: Always
   replicaCount: 2
   resources:
