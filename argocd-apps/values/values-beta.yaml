@@ -1,14 +1,14 @@
 serviceindex:
   image:
-    repository: reportportal/service-index
-    tag: 5.12.0
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-index
+    tag: develop-21
   nodeSelector:
     env: beta
 
 serviceui:
   image:
-    repository: reportportal/service-ui
-    tag: 5.12.0
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-ui
+    tag: develop-374
   nodeSelector:
     env: beta
 
@@ -93,8 +93,8 @@ serviceapi:
 
 uat:
   image:
-    repository: reportportal/service-authorization
-    tag: 5.12.0
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-authorization
+    tag: EPMRPP-96070-saml-uuid-93
   resources:
     requests:
       cpu: 100m
@@ -121,8 +121,8 @@ uat:
 
 servicejobs:
   image:
-    repository: reportportal/service-jobs
-    tag: 5.12.0
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-jobs
+    tag: develop-20
   coreJobs:
     cleanEventsRetention: 365
     cleanEventsCron: 0 */6 * * * *
@@ -156,8 +156,8 @@ servicejobs:
 
 serviceanalyzer:
   image:
-    repository: reportportal/service-auto-analyzer
-    tag: 5.12.0-r1
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-auto-analyzer
+    tag: develop-71
   uwsgiWorkers: 2
   resources:
     requests:
@@ -185,15 +185,15 @@ serviceanalyzertrain:
 
 metricsgatherer:
   image:
-    repository: reportportal/service-metrics-gatherer
-    tag: 5.12.0-r1
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/service-metrics-gatherer
+    tag: develop-15
   nodeSelector:
     beta: rabbitmq
 
 migrations:
   image:
-    repository: reportportal/migrations
-    tag: 5.12.1
+    repository: 334301710522.dkr.ecr.eu-central-1.amazonaws.com/migrations
+    tag: develop-43
 
 
 ## @section Infrastructure configuration
